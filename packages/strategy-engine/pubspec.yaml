@@ -1,0 +1,16 @@
+name: strategy_engine
+description: Deterministic trading strategy rules for TradeForge V2.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  market_models:
+    path: ../market-models
+  technical_analysis:
+    path: ../technical-analysis
+
+dev_dependencies:
+  test: ^1.26.0

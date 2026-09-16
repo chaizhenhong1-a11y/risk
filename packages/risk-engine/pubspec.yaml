@@ -1,0 +1,16 @@
+name: risk_engine
+description: Deterministic risk planning primitives for TradeForge V2.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  strategy_engine:
+    path: ../strategy-engine
+  technical_analysis:
+    path: ../technical-analysis
+
+dev_dependencies:
+  test: ^1.25.0

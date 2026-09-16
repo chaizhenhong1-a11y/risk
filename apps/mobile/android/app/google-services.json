@@ -1,0 +1,67 @@
+{
+  "project_info": {
+    "project_number": "634448351189",
+    "project_id": "holysht",
+    "storage_bucket": "holysht.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:634448351189:android:c22d899b625e4ed5dd775c",
+        "android_client_info": {
+          "package_name": "com.example.drawing"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDEuRlHsPM2P5YsNf2wPZ4zx2Xrr5nHLuE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:634448351189:android:09161758bd2cf672dd775c",
+        "android_client_info": {
+          "package_name": "com.example.tradeforge"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDEuRlHsPM2P5YsNf2wPZ4zx2Xrr5nHLuE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:634448351189:android:aec447031955c456dd775c",
+        "android_client_info": {
+          "package_name": "com.tradeforge.tradeforge_v2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDEuRlHsPM2P5YsNf2wPZ4zx2Xrr5nHLuE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
