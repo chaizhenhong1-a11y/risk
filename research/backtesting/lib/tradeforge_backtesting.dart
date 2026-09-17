@@ -4,6 +4,8 @@ export 'src/diagnostics/correction_strategy_outcome_diagnostics.dart';
 export 'src/diagnostics/correction_regime_diagnostics.dart';
 export 'src/diagnostics/strategy_b_candidate_research_diagnostics.dart';
 export 'src/diagnostics/strategy_b_candidate_forward_tracker.dart';
+export 'src/diagnostics/multi_strategy_opportunity_coverage.dart';
+export 'src/diagnostics/strategy_c_regime_gap_diagnostics.dart';
 export 'src/data/backtest_candle_feed.dart';
 export 'src/data/mt5_history_adapter.dart';
 export 'src/data/multi_timeframe_backtest_feed.dart';
@@ -22,9 +24,6 @@ export 'src/results/historical_signal_record.dart';
 export 'src/metrics/backtest_metrics.dart';
 export 'src/report/backtest_run_report.dart';
 export 'src/replay/correction_continuation_risk_replay.dart';
-
 export 'src/diagnostics/strategy_b_research_snapshot.dart';
-
 export 'src/diagnostics/strategy_b_v2_hypothesis.dart';
-
 export 'src/diagnostics/strategy_b_v2_validation.dart';

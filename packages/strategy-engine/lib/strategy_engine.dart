@@ -8,6 +8,7 @@ export 'src/pullback/pullback_detector.dart';
 export 'src/regime/market_regime.dart';
 export 'src/regime/market_regime_classifier.dart';
 export 'src/routing/market_regime_router.dart';
+export 'src/routing/strategy_candidate_pool.dart';
 export 'src/scoring/setup_score.dart';
 export 'src/scoring/setup_score_profile.dart';
 export 'src/setup/d1_context_evidence.dart';
