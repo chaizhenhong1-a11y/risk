@@ -49,7 +49,9 @@ final class StrategyCandidatePoolResult {
   StrategyCandidatePoolResult({
     required Iterable<PooledStrategyOpportunity> opportunities,
     required Iterable<StrategyCandidateConflict> conflicts,
-  }) : opportunities = List<PooledStrategyOpportunity>.unmodifiable(opportunities),
+  }) : opportunities = List<PooledStrategyOpportunity>.unmodifiable(
+         opportunities,
+       ),
        conflicts = List<StrategyCandidateConflict>.unmodifiable(conflicts);
 
   final List<PooledStrategyOpportunity> opportunities;

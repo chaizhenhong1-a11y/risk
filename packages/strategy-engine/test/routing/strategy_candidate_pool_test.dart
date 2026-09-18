@@ -7,17 +7,19 @@ void main() {
   StrategyOpportunityCandidate candidate(
     StrategyRouteId strategy,
     TradingBias bias,
-  ) =>
-      StrategyOpportunityCandidate(
-        symbol: 'XAUUSD',
-        observedAt: time,
-        strategy: strategy,
-        bias: bias,
-      );
+  ) => StrategyOpportunityCandidate(
+    symbol: 'XAUUSD',
+    observedAt: time,
+    strategy: strategy,
+    bias: bias,
+  );
 
   test('same-time same-direction candidates are de-duplicated', () {
     final result = const StrategyCandidatePool().combine([
-      candidate(StrategyRouteId.trendPullbackStructureConfirmation, TradingBias.buy),
+      candidate(
+        StrategyRouteId.trendPullbackStructureConfirmation,
+        TradingBias.buy,
+      ),
       candidate(StrategyRouteId.correctionContinuation, TradingBias.buy),
     ]);
 
@@ -28,7 +30,10 @@ void main() {
 
   test('opposite directions become an explicit conflict', () {
     final result = const StrategyCandidatePool().combine([
-      candidate(StrategyRouteId.trendPullbackStructureConfirmation, TradingBias.buy),
+      candidate(
+        StrategyRouteId.trendPullbackStructureConfirmation,
+        TradingBias.buy,
+      ),
       candidate(StrategyRouteId.correctionContinuation, TradingBias.sell),
     ]);
 
