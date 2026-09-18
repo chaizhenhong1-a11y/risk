@@ -1,6 +1,9 @@
 name: tradeforge_backtesting
+
 description: Deterministic historical backtesting foundation for TradeForge V2.
+
 version: 0.1.0
+
 publish_to: none
 
 environment:
@@ -9,14 +12,23 @@ environment:
 dependencies:
   market_models:
     path: ../../packages/market-models
+
   risk_engine:
     path: ../../packages/risk-engine
+
   signal_engine:
     path: ../../packages/signal-engine
+
   strategy_engine:
     path: ../../packages/strategy-engine
+
   technical_analysis:
     path: ../../packages/technical-analysis
+
+  flutter:
+    sdk: flutter
+
+  firebase_core: ^4.1.0
 
 dev_dependencies:
   lints: ^6.0.0
