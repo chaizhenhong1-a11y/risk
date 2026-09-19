@@ -2,22 +2,23 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import '../strategy_library/paper_forward_segment_portfolio.dart';
+import 'biquote_live_paper_session.dart';
 import 'biquote_market_data.dart';
 import 'biquote_realtime_feed.dart';
-import 'biquote_signalr_client.dart';
-import 'biquote_live_paper_session.dart';
-import 'paper_strategy_opportunity.dart';
+import 'independent_candidate_fundamental_coordinator.dart';
+import 'paper_exposure_control.dart';
 import 'paper_signal.dart';
 import 'paper_signal_journal.dart';
-import 'paper_exposure_control.dart';
+import 'paper_strategy_opportunity.dart';
 import 'paper_trade_result_journal.dart';
-import '../strategy_library/paper_forward_segment_portfolio.dart';
 
 final class BiQuoteUnifiedLiveApiServer {
   BiQuoteUnifiedLiveApiServer({
     required this.feed,
     required this.session,
     required this.segmentCandidateJournal,
+    this.fundamentalCoordinator,
     this.address = '127.0.0.1',
     this.port = 8787,
   });
@@ -25,6 +26,7 @@ final class BiQuoteUnifiedLiveApiServer {
   final BiQuoteRealtimeFeed feed;
   final BiQuoteLivePaperSession session;
   final File segmentCandidateJournal;
+  final IndependentCandidateFundamentalCoordinator? fundamentalCoordinator;
   final String address;
   final int port;
 
@@ -39,12 +41,6 @@ final class BiQuoteUnifiedLiveApiServer {
         _tick = tick;
         _error = null;
       }, onError: (Object error, StackTrace stackTrace) => _error = '$error'),
-    );
-    _subscriptions.add(
-      feed.states.listen(
-        (state) => _streamState = state,
-        onError: (Object error, StackTrace stackTrace) => _error = '$error',
-      ),
     );
     _server = await HttpServer.bind(address, port);
     _server!.listen(_handleRequest);
@@ -287,7 +283,7 @@ final class BiQuoteUnifiedLiveApiServer {
     );
     for (final x in list) {
       final d = exposure[x['id'].toString()];
-      if (d != null)
+      if (d != null) {
         x.addAll({
           'exposureStatus': d.exposureStatus,
           'independentEvidence': d.independentEvidence,
@@ -296,7 +292,9 @@ final class BiQuoteUnifiedLiveApiServer {
           'exposureGroupId': d.exposureGroupId,
           'overlapsSignalId': d.overlapsSignalId,
         });
+      }
     }
+    await fundamentalCoordinator?.enrich(list);
     list.sort(
       (a, b) =>
           b['observedAt'].toString().compareTo(a['observedAt'].toString()),
@@ -340,8 +338,8 @@ final class BiQuoteUnifiedLiveApiServer {
   }
 
   Map<String, Object?> _opportunityJson(PaperStrategyOpportunity x) {
-    final risk = (x.entry - x.stopLoss).abs(),
-        reward = (x.takeProfit - x.entry).abs();
+    final risk = (x.entry - x.stopLoss).abs();
+    final reward = (x.takeProfit - x.entry).abs();
     return {
       'symbol': x.symbol,
       'strategy': x.strategy,

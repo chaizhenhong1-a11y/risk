@@ -96,16 +96,27 @@ final class GeminiFundamentalReviewClient {
   ) {
     final prompt =
         """
-You are TradeForge's XAUUSD fundamental/news reviewer.
-The trading strategy has already produced a candidate. You are NOT a trade gate.
+You are TradeForge's candidate-specific XAUUSD reviewer.
+
+A trading strategy has ALREADY produced this candidate. You are advisory only.
 Never invalidate, delete, approve, reject, or replace the strategy signal.
-Use ONLY the supplied calendar/news facts. Do not invent current events.
-Classify event/news risk around this candidate as normal, caution, or high_risk.
-goldBias must be bullish, bearish, mixed, or unclear.
-Focus on gold-relevant facts: Fed/rates, inflation, US labour, USD, Treasury/yields,
-geopolitics, tariffs/sanctions, safe-haven shocks, and directly relevant gold news.
-Ignore weakly related company/mining-stock articles unless they materially affect spot gold.
-Explain briefly and name relevant factor titles/names from supplied facts.
+Never invent a win probability. Never call STANDARD/STRONG a probability.
+Use ONLY fields and facts supplied below. Do not invent indicators, timeframes,
+price structure, news, events, support/resistance, volatility, or market data
+that are not explicitly present.
+
+Review THIS EXACT candidate using strategy, side, regime, Entry, Stop Loss,
+Take Profit, Risk/Reward, trigger reason and exposure information.
+candidateSummary must be a concise candidate-specific second opinion.
+technicalReasons must contain only candidate-specific support visible in input.
+riskReasons must contain candidate-specific cautions and missing context.
+
+Separately review fundamental/news facts. risk is normal/caution/high_risk.
+goldBias is bullish/bearish/mixed/unclear. Focus on Fed/rates, inflation,
+US labour, USD, Treasury/yields, geopolitics, tariffs/sanctions, safe-haven
+shocks and directly relevant gold news. Ignore weak unrelated stories.
+summary is ONLY the fundamental/news summary.
+relevantFactors must name only supplied facts.
 
 CANDIDATE:
 ${jsonEncode(candidate)}
@@ -139,13 +150,30 @@ ${jsonEncode(news)}
               'type': 'STRING',
               'enum': ['bullish', 'bearish', 'mixed', 'unclear'],
             },
+            'candidateSummary': {'type': 'STRING'},
+            'technicalReasons': {
+              'type': 'ARRAY',
+              'items': {'type': 'STRING'},
+            },
+            'riskReasons': {
+              'type': 'ARRAY',
+              'items': {'type': 'STRING'},
+            },
             'summary': {'type': 'STRING'},
             'relevantFactors': {
               'type': 'ARRAY',
               'items': {'type': 'STRING'},
             },
           },
-          'required': ['risk', 'goldBias', 'summary', 'relevantFactors'],
+          'required': [
+            'risk',
+            'goldBias',
+            'candidateSummary',
+            'technicalReasons',
+            'riskReasons',
+            'summary',
+            'relevantFactors',
+          ],
         },
       },
     };
@@ -180,17 +208,20 @@ ${jsonEncode(news)}
       'caution' => FundamentalRisk.caution,
       _ => FundamentalRisk.normal,
     };
-    final factors = json['relevantFactors'] is List
-        ? (json['relevantFactors'] as List)
-              .map((e) => '$e')
-              .toList(growable: false)
+
+    List<String> strings(String key) => json[key] is List
+        ? (json[key] as List).map((e) => '$e').toList(growable: false)
         : const <String>[];
+
     return GeminiFundamentalReview(
       available: true,
       risk: risk,
       goldBias: '${json['goldBias'] ?? 'unclear'}',
+      candidateSummary: '${json['candidateSummary'] ?? ''}',
+      technicalReasons: strings('technicalReasons'),
+      riskReasons: strings('riskReasons'),
       summary: '${json['summary'] ?? ''}',
-      relevantFactors: factors,
+      relevantFactors: strings('relevantFactors'),
       model: model,
     );
   }

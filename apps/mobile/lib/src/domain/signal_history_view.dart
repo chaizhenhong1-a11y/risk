@@ -19,6 +19,11 @@ class FundamentalReviewView {
     required this.relevantFactors,
     required this.aiAvailable,
     required this.candidatePreserved,
+    this.candidateSummary = '',
+    this.technicalReasons = const <String>[],
+    this.riskReasons = const <String>[],
+    this.executionIntegrityOk = true,
+    this.executionIntegrityReasons = const <String>[],
     this.model,
     this.reason,
     this.newsCacheHit = false,
@@ -33,6 +38,11 @@ class FundamentalReviewView {
   final String goldBias;
   final String summary;
   final List<String> relevantFactors;
+  final String candidateSummary;
+  final List<String> technicalReasons;
+  final List<String> riskReasons;
+  final bool executionIntegrityOk;
+  final List<String> executionIntegrityReasons;
   final bool aiAvailable;
   final bool candidatePreserved;
   final String? model;
@@ -53,14 +63,19 @@ class FundamentalReviewView {
       'HIGH_RISK' => FundamentalRiskView.highRisk,
       _ => FundamentalRiskView.unknown,
     };
-    final rawFactors = json['relevantFactors'];
+    List<String> strings(String key) => json[key] is List
+        ? (json[key] as List).map((e) => e.toString()).toList(growable: false)
+        : const <String>[];
     return FundamentalReviewView(
       risk: risk,
       goldBias: json['goldBias']?.toString() ?? 'unclear',
       summary: json['summary']?.toString() ?? '',
-      relevantFactors: rawFactors is List
-          ? rawFactors.map((item) => item.toString()).toList(growable: false)
-          : const <String>[],
+      relevantFactors: strings('relevantFactors'),
+      candidateSummary: json['candidateSummary']?.toString() ?? '',
+      technicalReasons: strings('technicalReasons'),
+      riskReasons: strings('riskReasons'),
+      executionIntegrityOk: json['executionIntegrityOk'] as bool? ?? true,
+      executionIntegrityReasons: strings('executionIntegrityReasons'),
       aiAvailable: json['aiAvailable'] as bool? ?? false,
       candidatePreserved: json['candidatePreserved'] as bool? ?? true,
       model: json['model']?.toString(),
@@ -69,16 +84,8 @@ class FundamentalReviewView {
       calendarCacheHit: json['calendarCacheHit'] as bool? ?? false,
       confidence: json['confidence']?.toString() ?? 'STANDARD',
       confidenceCalibrated: json['confidenceCalibrated'] as bool? ?? false,
-      confidenceReasons: json['confidenceReasons'] is List
-          ? (json['confidenceReasons'] as List)
-              .map((e) => e.toString())
-              .toList(growable: false)
-          : const <String>[],
-      confidenceCautions: json['confidenceCautions'] is List
-          ? (json['confidenceCautions'] as List)
-              .map((e) => e.toString())
-              .toList(growable: false)
-          : const <String>[],
+      confidenceReasons: strings('confidenceReasons'),
+      confidenceCautions: strings('confidenceCautions'),
     );
   }
 }
