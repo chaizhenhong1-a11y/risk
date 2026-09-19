@@ -29,6 +29,8 @@ Map<String, Object?> fundamentalReviewProjection(
     'riskReasons': result.review.riskReasons,
     'aiSupportPercent': result.review.supportPercent,
     'aiOpposePercent': result.review.opposePercent,
+    'aiSupportExplanation': result.review.supportExplanation,
+    'aiOpposeExplanation': result.review.opposeExplanation,
     'aiAvailable': result.review.available,
     'model': result.review.model,
     'reason': result.review.reason,

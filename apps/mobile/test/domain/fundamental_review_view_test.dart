@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeforge_mobile/src/domain/signal_history_view.dart';
 
 void main() {
-  test('reads AI support and oppose percentages from API review', () {
+  test('reads AI support and oppose percentages with explanations', () {
     final review = FundamentalReviewView.fromJson({
       'risk': 'CAUTION',
       'goldBias': 'mixed',
@@ -12,10 +12,14 @@ void main() {
       'candidatePreserved': true,
       'aiSupportPercent': 72,
       'aiOpposePercent': 28,
+      'aiSupportExplanation': '当前策略结构提供主要支持。',
+      'aiOpposeExplanation': '重要数据公布前仍有波动风险。',
     });
 
     expect(review.aiSupportPercent, 72);
     expect(review.aiOpposePercent, 28);
+    expect(review.aiSupportExplanation, contains('支持'));
+    expect(review.aiOpposeExplanation, contains('风险'));
     expect(review.candidatePreserved, isTrue);
   });
 
@@ -31,6 +35,8 @@ void main() {
 
     expect(review.aiSupportPercent, isNull);
     expect(review.aiOpposePercent, isNull);
+    expect(review.aiSupportExplanation, isEmpty);
+    expect(review.aiOpposeExplanation, isEmpty);
     expect(review.candidatePreserved, isTrue);
   });
 }

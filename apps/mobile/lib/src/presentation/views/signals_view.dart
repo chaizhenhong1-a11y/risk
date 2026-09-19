@@ -203,6 +203,24 @@ class _FinalReviewCard extends StatelessWidget {
               '这是 AI 的复核倾向，不是胜率',
               style: TextStyle(color: TradeForgeTheme.muted, fontSize: 10.5),
             ),
+            if (review.aiSupportExplanation.isNotEmpty ||
+                review.aiOpposeExplanation.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              if (review.aiSupportExplanation.isNotEmpty)
+                _PercentExplanation(
+                  label: '为什么支持',
+                  text: review.aiSupportExplanation,
+                  positive: true,
+                ),
+              if (review.aiOpposeExplanation.isNotEmpty) ...[
+                const SizedBox(height: 7),
+                _PercentExplanation(
+                  label: '为什么反对',
+                  text: review.aiOpposeExplanation,
+                  positive: false,
+                ),
+              ],
+            ],
           ] else
             const Text(
               'AI 暂时无法给出复核比例，原策略信号仍然保留。',
@@ -295,6 +313,39 @@ class _FinalReviewCard extends StatelessWidget {
         'mixed' => '方向混合',
         _ => '方向不明',
       };
+}
+
+class _PercentExplanation extends StatelessWidget {
+  const _PercentExplanation({
+    required this.label,
+    required this.text,
+    required this.positive,
+  });
+
+  final String label;
+  final String text;
+  final bool positive;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$label：',
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w800,
+              color: positive ? TradeForgeTheme.primary : Colors.orangeAccent,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(fontSize: 11.5, height: 1.35),
+            ),
+          ),
+        ],
+      );
 }
 
 class _PercentBox extends StatelessWidget {

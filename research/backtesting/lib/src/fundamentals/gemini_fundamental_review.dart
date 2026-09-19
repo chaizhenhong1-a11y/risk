@@ -13,6 +13,8 @@ final class GeminiFundamentalReview {
     this.riskReasons = const <String>[],
     this.supportPercent,
     this.opposePercent,
+    this.supportExplanation = '',
+    this.opposeExplanation = '',
     this.reason,
   });
 
@@ -30,6 +32,12 @@ final class GeminiFundamentalReview {
 
   /// AI 对当前策略候选的反对倾向，不是亏损概率，也不是交易 Gate。
   final int? opposePercent;
+
+  /// 用一句简单中文解释为什么产生当前支持比例。
+  final String supportExplanation;
+
+  /// 用一句简单中文解释为什么产生当前反对比例。
+  final String opposeExplanation;
 
   final String model;
   final String? reason;
@@ -50,6 +58,8 @@ final class GeminiFundamentalReview {
     riskReasons: const [],
     supportPercent: null,
     opposePercent: null,
+    supportExplanation: '',
+    opposeExplanation: '',
     model: model,
     reason: reason,
   );

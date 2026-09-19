@@ -105,6 +105,16 @@ probabilities. They only express how strongly your review supports or opposes
 THIS EXISTING candidate using the supplied evidence.
 supportPercent and opposePercent must each be integers from 0 to 100 and MUST
 sum to exactly 100.
+
+supportExplanation must briefly explain what most increased supportPercent.
+opposeExplanation must briefly explain what most increased opposePercent.
+These explanations must describe supplied evidence, not invent a mathematical
+scoring formula or claim that the percentages are statistically calibrated.
+
+All user-facing text fields MUST use concise Simplified Chinese:
+candidateSummary, supportExplanation, opposeExplanation, technicalReasons,
+riskReasons, summary and relevantFactors. Keep wording simple and direct.
+
 Use ONLY fields and facts supplied below. Do not invent indicators, timeframes,
 price structure, news, events, support/resistance, volatility, or market data
 that are not explicitly present.
@@ -156,6 +166,8 @@ ${jsonEncode(news)}
             },
             'supportPercent': {'type': 'INTEGER', 'minimum': 0, 'maximum': 100},
             'opposePercent': {'type': 'INTEGER', 'minimum': 0, 'maximum': 100},
+            'supportExplanation': {'type': 'STRING'},
+            'opposeExplanation': {'type': 'STRING'},
             'candidateSummary': {'type': 'STRING'},
             'technicalReasons': {
               'type': 'ARRAY',
@@ -176,6 +188,8 @@ ${jsonEncode(news)}
             'goldBias',
             'supportPercent',
             'opposePercent',
+            'supportExplanation',
+            'opposeExplanation',
             'candidateSummary',
             'technicalReasons',
             'riskReasons',
@@ -241,6 +255,8 @@ ${jsonEncode(news)}
       goldBias: '${json['goldBias'] ?? 'unclear'}',
       supportPercent: supportPercent,
       opposePercent: opposePercent,
+      supportExplanation: '${json['supportExplanation'] ?? ''}'.trim(),
+      opposeExplanation: '${json['opposeExplanation'] ?? ''}'.trim(),
       candidateSummary: '${json['candidateSummary'] ?? ''}',
       technicalReasons: strings('technicalReasons'),
       riskReasons: strings('riskReasons'),

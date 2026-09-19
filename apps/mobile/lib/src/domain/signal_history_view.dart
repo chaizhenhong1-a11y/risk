@@ -24,6 +24,8 @@ class FundamentalReviewView {
     this.riskReasons = const <String>[],
     this.aiSupportPercent,
     this.aiOpposePercent,
+    this.aiSupportExplanation = '',
+    this.aiOpposeExplanation = '',
     this.executionIntegrityOk = true,
     this.executionIntegrityReasons = const <String>[],
     this.model,
@@ -45,6 +47,8 @@ class FundamentalReviewView {
   final List<String> riskReasons;
   final int? aiSupportPercent;
   final int? aiOpposePercent;
+  final String aiSupportExplanation;
+  final String aiOpposeExplanation;
   final bool executionIntegrityOk;
   final List<String> executionIntegrityReasons;
   final bool aiAvailable;
@@ -87,6 +91,8 @@ class FundamentalReviewView {
       riskReasons: strings('riskReasons'),
       aiSupportPercent: percent('aiSupportPercent'),
       aiOpposePercent: percent('aiOpposePercent'),
+      aiSupportExplanation: json['aiSupportExplanation']?.toString() ?? '',
+      aiOpposeExplanation: json['aiOpposeExplanation']?.toString() ?? '',
       executionIntegrityOk: json['executionIntegrityOk'] as bool? ?? true,
       executionIntegrityReasons: strings('executionIntegrityReasons'),
       aiAvailable: json['aiAvailable'] as bool? ?? false,
