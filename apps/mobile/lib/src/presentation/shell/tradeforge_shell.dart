@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../application/live_tradeforge_controller.dart';
 import '../views/market_view.dart';
+import '../views/performance_view.dart';
 import '../views/settings_view.dart';
 import '../views/signals_view.dart';
 
@@ -41,6 +42,7 @@ class _TradeForgeShellState extends State<TradeForgeShell> {
               children: [
                 MarketView(state: state),
                 SignalsView(state: state),
+                PerformanceView(state: state),
                 const SettingsView(),
               ],
             );
@@ -60,6 +62,11 @@ class _TradeForgeShellState extends State<TradeForgeShell> {
             icon: Icon(Icons.bolt_outlined),
             selectedIcon: Icon(Icons.bolt),
             label: '信号',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.query_stats_outlined),
+            selectedIcon: Icon(Icons.query_stats),
+            label: '统计',
           ),
           NavigationDestination(
             icon: Icon(Icons.tune_outlined),
