@@ -106,6 +106,14 @@ THIS EXISTING candidate using the supplied evidence.
 supportPercent and opposePercent must each be integers from 0 to 100 and MUST
 sum to exactly 100.
 
+Build the review in this evidence order:
+1. First judge whether supplied M5/M15/H1/H4 marketContext supports or conflicts with the candidate side.
+2. Then judge whether supplied news and economic-calendar facts support, conflict with, or add uncertainty.
+3. Read contextFreshness before relying on a source. If marked stale, reduce its review weight and mention the limitation.
+4. Finally produce one coherent second opinion for THIS candidate.
+
+supportPercent/opposePercent are an explainable review balance, not a measured probability, win rate, backtested calibration, or hidden formula. Strong opposition, including 95%+, MUST NOT invalidate or gate the strategy candidate.
+
 supportExplanation must briefly explain what most increased supportPercent.
 opposeExplanation must briefly explain what most increased opposePercent.
 These explanations must describe supplied evidence, not invent a mathematical
