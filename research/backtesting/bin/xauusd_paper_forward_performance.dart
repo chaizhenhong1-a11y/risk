@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:tradeforge_backtesting/src/analytics/paper_forward_performance_adapter.dart';
+import 'package:tradeforge_backtesting/src/analytics/performance_sample_formatter.dart';
 
 void main(List<String> args) {
   final root = args.isEmpty ? '.paper_forward' : args.first;
@@ -118,6 +119,9 @@ void _printReport(String title, dynamic report) {
 void _printMetrics(String label, dynamic m) {
   stdout.writeln('');
   stdout.writeln(label);
+  stdout.writeln(
+    '  sample=${formatPerformanceSampleQuality(m.tradeCount as int)}',
+  );
   stdout.writeln(
     '  trades=${m.tradeCount} W=${m.winCount} L=${m.lossCount} '
     'BE=${m.breakEvenCount}',
