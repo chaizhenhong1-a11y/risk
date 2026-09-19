@@ -1,3 +1,4 @@
+import 'ai_review_context_audit.dart';
 import 'gold_event_context.dart';
 import 'gold_news_context.dart';
 import 'gemini_fundamental_review.dart';
@@ -16,6 +17,7 @@ final class FundamentalReviewResult {
     required this.review,
     required this.newsContext,
     required this.eventContext,
+    required this.contextAudit,
     required this.newsCacheHit,
     required this.calendarCacheHit,
     required this.candidatePreserved,
@@ -24,6 +26,7 @@ final class FundamentalReviewResult {
   final GeminiFundamentalReview review;
   final GoldNewsContext newsContext;
   final GoldEventContext eventContext;
+  final AiReviewContextAudit contextAudit;
   final bool newsCacheHit;
   final bool calendarCacheHit;
 
@@ -69,12 +72,20 @@ final class CandidateFundamentalReviewService {
     final calendarWasFresh = _isCalendarFresh(now);
     final events = calendarWasFresh ? _eventCache! : await _refreshEvents(now);
 
+    final calendarJson = _eventJson(events);
+    final newsJson = _newsJson(news);
+    final contextAudit = auditAiReviewContext(
+      candidate: candidate,
+      economicCalendar: calendarJson,
+      newsContext: newsJson,
+    );
+
     GeminiFundamentalReview aiReview;
     try {
       aiReview = await _review(
         Map<String, dynamic>.unmodifiable(candidate),
-        _eventJson(events),
-        _newsJson(news),
+        calendarJson,
+        newsJson,
       );
     } catch (error) {
       aiReview = GeminiFundamentalReview.unavailable(
@@ -87,6 +98,7 @@ final class CandidateFundamentalReviewService {
       review: aiReview,
       newsContext: news,
       eventContext: events,
+      contextAudit: contextAudit,
       newsCacheHit: newsWasFresh,
       calendarCacheHit: calendarWasFresh,
       candidatePreserved: true,

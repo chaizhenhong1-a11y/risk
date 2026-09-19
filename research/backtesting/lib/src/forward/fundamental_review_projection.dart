@@ -31,6 +31,7 @@ Map<String, Object?> fundamentalReviewProjection(
     'aiOpposePercent': result.review.opposePercent,
     'aiSupportExplanation': result.review.supportExplanation,
     'aiOpposeExplanation': result.review.opposeExplanation,
+    'aiContextAudit': result.contextAudit.toJson(),
     'aiAvailable': result.review.available,
     'model': result.review.model,
     'reason': result.review.reason,

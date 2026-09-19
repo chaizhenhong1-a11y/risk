@@ -60,6 +60,48 @@ void main() {
     expect(eventCalls, 1);
     expect(reviewCalls, 2);
     expect(second.candidatePreserved, isTrue);
+    expect(second.contextAudit.candidateCoreComplete, isFalse);
+  });
+
+  test('complete review input is audited without gating candidate', () async {
+    final now = DateTime.utc(2026, 9, 18, 12);
+    final service = CandidateFundamentalReviewService(
+      loadNews: (at) async => GoldNewsContext(
+        observedAtUtc: at,
+        items: const [],
+        availability: GoldNewsAvailability.available,
+        provider: 'alpha_vantage',
+      ),
+      loadEvents: (at) async => GoldEventContext(
+        observedAtUtc: at,
+        events: const [],
+        risk: GoldEventRisk.normal,
+        source: 'finance_calendar',
+      ),
+      review: (_, _, _) async =>
+          GeminiFundamentalReview.unavailable(model: 'test', reason: 'test'),
+    );
+
+    final result = await service.reviewIndependentCandidate(
+      candidate: const {
+        'strategy': 'C5',
+        'side': 'BUY',
+        'entry': 3700.0,
+        'stopLoss': 3690.0,
+        'takeProfit': 3720.0,
+        'riskReward': 2.0,
+        'reason': 'trigger',
+        'exposureStatus': 'independent',
+      },
+      nowUtc: now,
+    );
+
+    expect(result.contextAudit.candidateCoreComplete, isTrue);
+    expect(result.contextAudit.newsAvailable, isTrue);
+    expect(result.contextAudit.calendarAvailable, isTrue);
+    expect(result.contextAudit.marketContextAvailable, isFalse);
+    expect(result.contextAudit.coverage, 'PARTIAL');
+    expect(result.candidatePreserved, isTrue);
   });
 
   test('expired news TTL refreshes provider once', () async {
@@ -118,5 +160,7 @@ void main() {
     expect(result.eventContext.risk, GoldEventRisk.normal);
     expect(result.review.available, isFalse);
     expect(result.review.risk, FundamentalRisk.normal);
+    expect(result.contextAudit.newsAvailable, isFalse);
+    expect(result.contextAudit.calendarAvailable, isFalse);
   });
 }

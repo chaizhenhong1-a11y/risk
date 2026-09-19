@@ -1,5 +1,6 @@
 import 'package:test/test.dart';
 import 'package:tradeforge_backtesting/src/forward/candidate_confidence_review.dart';
+import 'package:tradeforge_backtesting/src/fundamentals/ai_review_context_audit.dart';
 import 'package:tradeforge_backtesting/src/fundamentals/candidate_fundamental_review_service.dart';
 import 'package:tradeforge_backtesting/src/fundamentals/gemini_fundamental_review.dart';
 import 'package:tradeforge_backtesting/src/fundamentals/gold_event_context.dart';
@@ -27,6 +28,13 @@ void main() {
           events: const [],
           risk: GoldEventRisk.normal,
           source: 'test',
+        ),
+        contextAudit: const AiReviewContextAudit(
+          presentCandidateFields: [],
+          missingCandidateFields: [],
+          newsAvailable: true,
+          calendarAvailable: true,
+          marketContextAvailable: false,
         ),
         newsCacheHit: true,
         calendarCacheHit: true,
