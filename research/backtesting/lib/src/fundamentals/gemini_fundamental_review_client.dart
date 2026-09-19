@@ -100,7 +100,11 @@ You are TradeForge's candidate-specific XAUUSD reviewer.
 
 A trading strategy has ALREADY produced this candidate. You are advisory only.
 Never invalidate, delete, approve, reject, or replace the strategy signal.
-Never invent a win probability. Never call STANDARD/STRONG a probability.
+Never invent a win probability. supportPercent/opposePercent are NOT win/loss
+probabilities. They only express how strongly your review supports or opposes
+THIS EXISTING candidate using the supplied evidence.
+supportPercent and opposePercent must each be integers from 0 to 100 and MUST
+sum to exactly 100.
 Use ONLY fields and facts supplied below. Do not invent indicators, timeframes,
 price structure, news, events, support/resistance, volatility, or market data
 that are not explicitly present.
@@ -150,6 +154,8 @@ ${jsonEncode(news)}
               'type': 'STRING',
               'enum': ['bullish', 'bearish', 'mixed', 'unclear'],
             },
+            'supportPercent': {'type': 'INTEGER', 'minimum': 0, 'maximum': 100},
+            'opposePercent': {'type': 'INTEGER', 'minimum': 0, 'maximum': 100},
             'candidateSummary': {'type': 'STRING'},
             'technicalReasons': {
               'type': 'ARRAY',
@@ -168,6 +174,8 @@ ${jsonEncode(news)}
           'required': [
             'risk',
             'goldBias',
+            'supportPercent',
+            'opposePercent',
             'candidateSummary',
             'technicalReasons',
             'riskReasons',
@@ -203,6 +211,20 @@ ${jsonEncode(news)}
       throw const FormatException('Gemini JSON is not an object.');
     }
     final json = Map<String, dynamic>.from(decoded);
+    final supportPercent = _reviewPercent(
+      json['supportPercent'],
+      'supportPercent',
+    );
+    final opposePercent = _reviewPercent(
+      json['opposePercent'],
+      'opposePercent',
+    );
+    if (supportPercent + opposePercent != 100) {
+      throw const FormatException(
+        'AI review supportPercent and opposePercent must sum to 100.',
+      );
+    }
+
     final risk = switch (json['risk']) {
       'high_risk' => FundamentalRisk.highRisk,
       'caution' => FundamentalRisk.caution,
@@ -217,6 +239,8 @@ ${jsonEncode(news)}
       available: true,
       risk: risk,
       goldBias: '${json['goldBias'] ?? 'unclear'}',
+      supportPercent: supportPercent,
+      opposePercent: opposePercent,
       candidateSummary: '${json['candidateSummary'] ?? ''}',
       technicalReasons: strings('technicalReasons'),
       riskReasons: strings('riskReasons'),
@@ -224,5 +248,16 @@ ${jsonEncode(news)}
       relevantFactors: strings('relevantFactors'),
       model: model,
     );
+  }
+
+  int _reviewPercent(Object? value, String field) {
+    if (value is! num || value % 1 != 0) {
+      throw FormatException('$field must be an integer.');
+    }
+    final parsed = value.toInt();
+    if (parsed < 0 || parsed > 100) {
+      throw FormatException('$field must be between 0 and 100.');
+    }
+    return parsed;
   }
 }

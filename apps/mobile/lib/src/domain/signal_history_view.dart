@@ -22,6 +22,8 @@ class FundamentalReviewView {
     this.candidateSummary = '',
     this.technicalReasons = const <String>[],
     this.riskReasons = const <String>[],
+    this.aiSupportPercent,
+    this.aiOpposePercent,
     this.executionIntegrityOk = true,
     this.executionIntegrityReasons = const <String>[],
     this.model,
@@ -41,6 +43,8 @@ class FundamentalReviewView {
   final String candidateSummary;
   final List<String> technicalReasons;
   final List<String> riskReasons;
+  final int? aiSupportPercent;
+  final int? aiOpposePercent;
   final bool executionIntegrityOk;
   final List<String> executionIntegrityReasons;
   final bool aiAvailable;
@@ -66,6 +70,13 @@ class FundamentalReviewView {
     List<String> strings(String key) => json[key] is List
         ? (json[key] as List).map((e) => e.toString()).toList(growable: false)
         : const <String>[];
+    int? percent(String key) {
+      final value = json[key];
+      if (value is! num) return null;
+      final parsed = value.toInt();
+      return parsed >= 0 && parsed <= 100 ? parsed : null;
+    }
+
     return FundamentalReviewView(
       risk: risk,
       goldBias: json['goldBias']?.toString() ?? 'unclear',
@@ -74,6 +85,8 @@ class FundamentalReviewView {
       candidateSummary: json['candidateSummary']?.toString() ?? '',
       technicalReasons: strings('technicalReasons'),
       riskReasons: strings('riskReasons'),
+      aiSupportPercent: percent('aiSupportPercent'),
+      aiOpposePercent: percent('aiOpposePercent'),
       executionIntegrityOk: json['executionIntegrityOk'] as bool? ?? true,
       executionIntegrityReasons: strings('executionIntegrityReasons'),
       aiAvailable: json['aiAvailable'] as bool? ?? false,
