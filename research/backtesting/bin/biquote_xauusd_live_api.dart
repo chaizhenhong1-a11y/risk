@@ -73,6 +73,7 @@ Future<void> main(List<String> args) async {
   );
   final fundamentalCoordinator = IndependentCandidateFundamentalCoordinator(
     fundamentalService,
+    marketStore: store,
   );
 
   final liveApi = BiQuoteUnifiedLiveApiServer(
@@ -89,7 +90,9 @@ Future<void> main(List<String> args) async {
   stdout.writeln('segment candidates=${segmentCandidatesFile.path}');
   stdout.writeln('segment results=${segmentResultsFile.path}');
   stdout.writeln('Flutter API=http://127.0.0.1:8787/api/live');
-  stdout.writeln('Fundamental review=independent candidates only; fail-open');
+  stdout.writeln(
+    'Fundamental review=independent candidates + CLOSED M5/M15/H1/H4; fail-open',
+  );
   stdout.writeln('No broker orders are sent. Ctrl+C to stop.');
 
   ProcessSignal.sigint.watch().listen((_) async {
