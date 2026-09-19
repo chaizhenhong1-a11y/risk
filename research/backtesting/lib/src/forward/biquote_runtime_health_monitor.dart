@@ -2,10 +2,12 @@ import 'dart:async';
 import 'dart:io';
 
 import 'biquote_market_data.dart';
+import 'biquote_realtime_feed.dart';
 
 final class BiQuoteRuntimeHealthSnapshot {
   const BiQuoteRuntimeHealthSnapshot({
     required this.now,
+    required this.runtimeState,
     required this.tickCount,
     required this.lastTickAt,
     required this.lastTickPrice,
@@ -13,6 +15,7 @@ final class BiQuoteRuntimeHealthSnapshot {
   });
 
   final DateTime now;
+  final BiQuoteRuntimeState runtimeState;
   final int tickCount;
   final DateTime? lastTickAt;
   final double? lastTickPrice;
@@ -38,7 +41,6 @@ final class BiQuoteRuntimeHealthSnapshot {
   Duration get untilNextM5 => nextM5Boundary.difference(now.toUtc());
 }
 
-/// Read-only live transport health. It never changes strategy decisions.
 final class BiQuoteRuntimeHealthMonitor {
   BiQuoteRuntimeHealthMonitor({IOSink? output, DateTime Function()? clock})
     : output = output ?? stdout,
@@ -51,7 +53,12 @@ final class BiQuoteRuntimeHealthMonitor {
   DateTime? _lastTickAt;
   double? _lastTickPrice;
   DateTime? _lastClosedM5;
+  BiQuoteRuntimeState _runtimeState = BiQuoteRuntimeState.connecting;
   Timer? _timer;
+
+  void onRuntimeState(BiQuoteRuntimeState state) {
+    _runtimeState = state;
+  }
 
   void onTick(BiQuoteTick tick) {
     _tickCount++;
@@ -65,6 +72,7 @@ final class BiQuoteRuntimeHealthMonitor {
 
   BiQuoteRuntimeHealthSnapshot snapshot() => BiQuoteRuntimeHealthSnapshot(
     now: _clock().toUtc(),
+    runtimeState: _runtimeState,
     tickCount: _tickCount,
     lastTickAt: _lastTickAt,
     lastTickPrice: _lastTickPrice,
@@ -79,14 +87,16 @@ final class BiQuoteRuntimeHealthMonitor {
 
   void _print() {
     final state = snapshot();
-    final status = state.tickCount == 0
-        ? 'WAITING'
-        : state.tickStale
-        ? 'STALE'
-        : 'LIVE';
+    final status = switch (state.runtimeState) {
+      BiQuoteRuntimeState.live => 'LIVE',
+      BiQuoteRuntimeState.marketClosed => 'MARKET_CLOSED',
+      BiQuoteRuntimeState.connecting => 'CONNECTING',
+      BiQuoteRuntimeState.offline => 'OFFLINE',
+      BiQuoteRuntimeState.stopped => 'STOPPED',
+    };
 
     output.writeln(
-      '[HEARTBEAT] ticks=$status count=${state.tickCount} '
+      '[HEARTBEAT] market=$status count=${state.tickCount} '
       'lastTick=${state.lastTickAt?.toIso8601String() ?? '-'} '
       'price=${state.lastTickPrice?.toStringAsFixed(2) ?? '-'} '
       'age=${state.tickAge?.inSeconds ?? '-'}s '

@@ -14,7 +14,6 @@ Future<void> main(List<String> args) async {
   final root = Directory(args.isNotEmpty ? args[0] : '.paper_forward');
   final signalsFile = File('${root.path}/xauusd_signals.jsonl');
   final resultsFile = File('${root.path}/xauusd_results.jsonl');
-
   final segmentStateFile = File(
     '${root.path}/segments/segment_bridge_state.json',
   );
@@ -27,17 +26,12 @@ Future<void> main(List<String> args) async {
   final segmentResultsFile = File(
     '${root.path}/segments/segment_results.jsonl',
   );
-
   await root.create(recursive: true);
   await segmentCandidatesFile.parent.create(recursive: true);
-
-  // The first run freezes "now". Restarts reuse the persisted startAt instead
-  // of silently resetting the unseen-forward observation window.
   final segmentStartAt = await _resolveImmutableSegmentStart(
     segmentStateFile,
     DateTime.now().toUtc(),
   );
-
   final store = BiQuoteClosedBarStore();
   final rest = BiQuoteRestClient();
   final signalR = BiQuoteSignalRClient();
@@ -58,13 +52,11 @@ Future<void> main(List<String> args) async {
     segmentLifecycleStateFile: segmentLifecycleStateFile,
     segmentResultsFile: segmentResultsFile,
   );
-
   final liveApi = BiQuoteUnifiedLiveApiServer(
     feed: feed,
     session: session,
     segmentCandidateJournal: segmentCandidatesFile,
   );
-
   stdout.writeln('TradeForge V2 — UNIFIED LIVE UI + Paper Forward');
   stdout.writeln('A/C5 signals=${signalsFile.path}');
   stdout.writeln('A/C5 results=${resultsFile.path}');
@@ -73,13 +65,11 @@ Future<void> main(List<String> args) async {
   stdout.writeln('segment results=${segmentResultsFile.path}');
   stdout.writeln('Flutter API=http://127.0.0.1:8787/api/live');
   stdout.writeln('No broker orders are sent. Ctrl+C to stop.');
-
   ProcessSignal.sigint.watch().listen((_) async {
     await liveApi.dispose();
     await session.dispose();
     exit(0);
   });
-
   await liveApi.start();
   await session.start();
   await Completer<void>().future;

@@ -13,8 +13,6 @@ import 'paper_exposure_control.dart';
 import 'paper_trade_result_journal.dart';
 import '../strategy_library/paper_forward_segment_portfolio.dart';
 
-/// HTTP projection of the same live BiQuote feed used by paper-forward.
-/// It is read-only and never sends broker orders.
 final class BiQuoteUnifiedLiveApiServer {
   BiQuoteUnifiedLiveApiServer({
     required this.feed,
@@ -32,7 +30,6 @@ final class BiQuoteUnifiedLiveApiServer {
 
   final List<StreamSubscription<Object?>> _subscriptions = [];
   HttpServer? _server;
-  BiQuoteStreamState _streamState = BiQuoteStreamState.disconnected;
   BiQuoteTick? _tick;
   String? _error;
 
@@ -49,10 +46,26 @@ final class BiQuoteUnifiedLiveApiServer {
         onError: (Object error, StackTrace stackTrace) => _error = '$error',
       ),
     );
-
     _server = await HttpServer.bind(address, port);
     _server!.listen(_handleRequest);
   }
+
+  String get _connectionName => switch (feed.runtimeState) {
+    BiQuoteRuntimeState.live => 'connected',
+    BiQuoteRuntimeState.marketClosed => 'marketClosed',
+    BiQuoteRuntimeState.connecting => 'connecting',
+    BiQuoteRuntimeState.offline => 'disconnected',
+    BiQuoteRuntimeState.stopped => 'disconnected',
+  };
+
+  String get _marketStatus => switch (feed.runtimeState) {
+    BiQuoteRuntimeState.live => 'OPEN',
+    BiQuoteRuntimeState.marketClosed => 'CLOSED',
+    _ => 'UNKNOWN',
+  };
+
+  String get _providerStatus =>
+      feed.runtimeState == BiQuoteRuntimeState.offline ? 'OFFLINE' : 'ONLINE';
 
   Future<void> _handleRequest(HttpRequest request) async {
     _cors(request.response);
@@ -72,7 +85,9 @@ final class BiQuoteUnifiedLiveApiServer {
       request.response.write(
         jsonEncode(<String, Object?>{
           'ok': true,
-          'connection': _streamState.name,
+          'connection': _connectionName,
+          'marketStatus': _marketStatus,
+          'providerStatus': _providerStatus,
           'hasTick': _tick != null,
         }),
       );
@@ -93,7 +108,9 @@ final class BiQuoteUnifiedLiveApiServer {
     final evaluatedAt = evaluation?.observedAt.toIso8601String();
 
     return <String, Object?>{
-      'connection': _streamState.name,
+      'connection': _connectionName,
+      'marketStatus': _marketStatus,
+      'providerStatus': _providerStatus,
       'symbol': quote?.symbol ?? 'XAUUSD',
       'quote': quote == null
           ? null
@@ -151,7 +168,7 @@ final class BiQuoteUnifiedLiveApiServer {
       'mode': 'production',
     };
     if (opportunity != null) {
-      value.addAll(<String, Object?>{
+      value.addAll({
         'result': opportunity.side.name.toUpperCase(),
         'entry': opportunity.entry,
         'stopLoss': opportunity.stopLoss,
@@ -165,15 +182,15 @@ final class BiQuoteUnifiedLiveApiServer {
   }
 
   Map<String, Object?> _segmentStatuses() {
-    final ids = const PaperForwardSegmentPortfolio().definitions
-        .map((item) => item.id)
-        .toList(growable: false);
+    final ids = const PaperForwardSegmentPortfolio().definitions.map(
+      (e) => e.id,
+    );
     final actual = session.segmentSession.bridge.lastScanResults;
-    return <String, Object?>{
+    return {
       for (final id in ids)
         id:
             actual[id] ??
-            <String, Object?>{
+            {
               'result': 'WAITING',
               'reason': '等待首个 CLOSED M5。',
               'status': 'waiting',
@@ -185,39 +202,35 @@ final class BiQuoteUnifiedLiveApiServer {
 
   Future<List<Map<String, Object?>>> _signalHistory() async {
     final history = <Map<String, Object?>>[];
-
-    final signalJournal = const PaperSignalJournal();
-    final resultJournal = const PaperTradeResultJournal();
-    final signals = signalJournal.readAll(session.signalRunner.signalsFile);
-    final results = <String, dynamic>{
-      for (final item in resultJournal.readAll(
-        session.signalRunner.resultsFile,
-      ))
-        item.signalId: item,
+    final sj = const PaperSignalJournal();
+    final rj = const PaperTradeResultJournal();
+    final signals = sj.readAll(session.signalRunner.signalsFile);
+    final results = {
+      for (final x in rj.readAll(session.signalRunner.resultsFile))
+        x.signalId: x,
     };
-    for (final signal in signals) {
-      final result = results[signal.id];
-      history.add(<String, Object?>{
-        'id': signal.id,
+    for (final s in signals) {
+      final r = results[s.id];
+      history.add({
+        'id': s.id,
         'source': 'production_paper',
-        'symbol': signal.symbol,
-        'strategy': signal.strategy,
-        'side': signal.side.name.toUpperCase(),
-        'observedAt': signal.observedAt.toUtc().toIso8601String(),
-        'entry': signal.entry,
-        'stopLoss': signal.stopLoss,
-        'takeProfit': signal.takeProfit,
-        'riskReward': signal.rewardRisk,
-        'reason': signal.reason,
-        'status': result == null
-            ? _paperStatusName(signal.status)
-            : _paperStatusName(result.status),
-        'resolvedAt': result?.resolvedAt.toUtc().toIso8601String(),
-        'realizedR': result?.grossR,
+        'symbol': s.symbol,
+        'strategy': s.strategy,
+        'side': s.side.name.toUpperCase(),
+        'observedAt': s.observedAt.toUtc().toIso8601String(),
+        'entry': s.entry,
+        'stopLoss': s.stopLoss,
+        'takeProfit': s.takeProfit,
+        'riskReward': s.rewardRisk,
+        'reason': s.reason,
+        'status': r == null
+            ? _paperStatusName(s.status)
+            : _paperStatusName(r.status),
+        'resolvedAt': r?.resolvedAt.toUtc().toIso8601String(),
+        'realizedR': r?.grossR,
       });
     }
-
-    final lifecycleById = await _segmentLifecycleById();
+    final lifecycle = await _segmentLifecycleById();
     if (segmentCandidateJournal.existsSync()) {
       await for (final line
           in segmentCandidateJournal
@@ -225,78 +238,73 @@ final class BiQuoteUnifiedLiveApiServer {
               .transform(utf8.decoder)
               .transform(const LineSplitter())) {
         if (line.trim().isEmpty) continue;
-        final decoded = jsonDecode(line);
-        if (decoded is! Map) continue;
-        final row = Map<String, dynamic>.from(decoded);
+        final d = jsonDecode(line);
+        if (d is! Map) continue;
+        final row = Map<String, dynamic>.from(d);
         if (row['kind'] != 'SEGMENT_PAPER_FORWARD') continue;
-        final observedAt = DateTime.parse(row['observedAt'].toString()).toUtc();
-        final segmentId = row['segmentId'].toString();
-        final id = '$segmentId|${observedAt.toIso8601String()}';
-        final lifecycle = lifecycleById[id];
-        history.add(<String, Object?>{
+        final at = DateTime.parse(row['observedAt'].toString()).toUtc();
+        final sid = row['segmentId'].toString();
+        final id = '$sid|${at.toIso8601String()}';
+        final life = lifecycle[id];
+        history.add({
           'id': id,
           'source': 'paper_forward',
           'symbol': 'XAUUSD',
-          'strategy':
-              row['strategyId']?.toString() ?? segmentId.split('|').first,
+          'strategy': row['strategyId']?.toString() ?? sid.split('|').first,
           'side': row['side']?.toString().toUpperCase(),
-          'segmentId': segmentId,
+          'segmentId': sid,
           'regime': row['regime']?.toString(),
-          'observedAt': observedAt.toIso8601String(),
+          'observedAt': at.toIso8601String(),
           'entry': row['entry'],
           'stopLoss': row['stop'],
           'takeProfit': row['target'],
           'riskReward': row['rewardRisk'],
           'reason': '冻结 segment 条件触发，候选已进入 Paper Forward。',
-          'status': lifecycle?['status']?.toString() ?? 'pending',
-          'resolvedAt': lifecycle?['resolvedAt'],
-          'realizedR': lifecycle?['realizedR'],
+          'status': life?['status']?.toString() ?? 'pending',
+          'resolvedAt': life?['resolvedAt'],
+          'realizedR': life?['realizedR'],
         });
       }
     }
-
     final byId = <String, Map<String, Object?>>{};
-    for (final item in history) {
-      final id = item['id']?.toString();
-      if (id == null || id.isEmpty) continue;
-      byId[id] = item;
+    for (final x in history) {
+      final id = x['id']?.toString();
+      if (id != null && id.isNotEmpty) byId[id] = x;
     }
-    final deduplicated = byId.values.toList(growable: false);
+    final list = byId.values.toList(growable: false);
     final exposure = const PaperExposureControl().classify(
-      deduplicated.map(
-        (item) => PaperExposureRecord(
-          id: item['id'].toString(),
-          strategy: item['strategy'].toString(),
-          side: item['side'].toString().toUpperCase(),
-          observedAt: DateTime.parse(item['observedAt'].toString()).toUtc(),
-          resolvedAt: item['resolvedAt'] == null
+      list.map(
+        (x) => PaperExposureRecord(
+          id: x['id'].toString(),
+          strategy: x['strategy'].toString(),
+          side: x['side'].toString().toUpperCase(),
+          observedAt: DateTime.parse(x['observedAt'].toString()).toUtc(),
+          resolvedAt: x['resolvedAt'] == null
               ? null
-              : DateTime.parse(item['resolvedAt'].toString()).toUtc(),
+              : DateTime.parse(x['resolvedAt'].toString()).toUtc(),
         ),
       ),
     );
-
-    for (final item in deduplicated) {
-      final decision = exposure[item['id'].toString()];
-      if (decision == null) continue;
-      item.addAll(<String, Object?>{
-        'exposureStatus': decision.exposureStatus,
-        'independentEvidence': decision.independentEvidence,
-        'executionEligible': decision.executionEligible,
-        'portfolioOverlap': decision.portfolioOverlap,
-        'exposureGroupId': decision.exposureGroupId,
-        'overlapsSignalId': decision.overlapsSignalId,
-      });
+    for (final x in list) {
+      final d = exposure[x['id'].toString()];
+      if (d != null)
+        x.addAll({
+          'exposureStatus': d.exposureStatus,
+          'independentEvidence': d.independentEvidence,
+          'executionEligible': d.executionEligible,
+          'portfolioOverlap': d.portfolioOverlap,
+          'exposureGroupId': d.exposureGroupId,
+          'overlapsSignalId': d.overlapsSignalId,
+        });
     }
-
-    deduplicated.sort(
+    list.sort(
       (a, b) =>
           b['observedAt'].toString().compareTo(a['observedAt'].toString()),
     );
-    return deduplicated;
+    return list;
   }
 
-  String _paperStatusName(PaperSignalStatus status) => switch (status) {
+  String _paperStatusName(PaperSignalStatus s) => switch (s) {
     PaperSignalStatus.pending => 'pending',
     PaperSignalStatus.triggered => 'triggered',
     PaperSignalStatus.targetHit => 'targetHit',
@@ -307,61 +315,61 @@ final class BiQuoteUnifiedLiveApiServer {
   };
 
   Future<Map<String, Map<String, dynamic>>> _segmentLifecycleById() async {
-    final stateFile = session.segmentSession.lifecycle.stateFile;
-    if (!stateFile.existsSync()) return const <String, Map<String, dynamic>>{};
-    final decoded = jsonDecode(await stateFile.readAsString());
-    if (decoded is! Map) return const <String, Map<String, dynamic>>{};
-    final raw = decoded['positions'];
-    if (raw is! List) return const <String, Map<String, dynamic>>{};
-    final result = <String, Map<String, dynamic>>{};
-    for (final item in raw) {
-      if (item is! Map) continue;
-      final row = Map<String, dynamic>.from(item);
+    final f = session.segmentSession.lifecycle.stateFile;
+    if (!f.existsSync()) return const {};
+    final d = jsonDecode(await f.readAsString());
+    if (d is! Map) return const {};
+    final raw = d['positions'];
+    if (raw is! List) return const {};
+    final out = <String, Map<String, dynamic>>{};
+    for (final x in raw) {
+      if (x is! Map) continue;
+      final row = Map<String, dynamic>.from(x);
       final id = row['id']?.toString();
       if (id == null) continue;
-      final status = row['status']?.toString();
-      row['realizedR'] = switch (status) {
+      final s = row['status']?.toString();
+      row['realizedR'] = switch (s) {
         'targetHit' => (row['rewardRisk'] as num?)?.toDouble(),
         'stopHit' => -1.0,
         'expired' => null,
         _ => null,
       };
-      result[id] = row;
+      out[id] = row;
     }
-    return result;
+    return out;
   }
 
-  Map<String, Object?> _opportunityJson(PaperStrategyOpportunity item) {
-    final risk = (item.entry - item.stopLoss).abs();
-    final reward = (item.takeProfit - item.entry).abs();
-    return <String, Object?>{
-      'symbol': item.symbol,
-      'strategy': item.strategy,
-      'side': item.side.name,
-      'observedAt': item.observedAt.toIso8601String(),
-      'entry': item.entry,
-      'stopLoss': item.stopLoss,
-      'takeProfit': item.takeProfit,
+  Map<String, Object?> _opportunityJson(PaperStrategyOpportunity x) {
+    final risk = (x.entry - x.stopLoss).abs(),
+        reward = (x.takeProfit - x.entry).abs();
+    return {
+      'symbol': x.symbol,
+      'strategy': x.strategy,
+      'side': x.side.name,
+      'observedAt': x.observedAt.toIso8601String(),
+      'entry': x.entry,
+      'stopLoss': x.stopLoss,
+      'takeProfit': x.takeProfit,
       'riskReward': risk == 0 ? 0 : reward / risk,
-      'reason': item.reason,
+      'reason': x.reason,
     };
   }
 
-  Future<int> _countLines(File file) async {
-    if (!file.existsSync()) return 0;
-    var count = 0;
+  Future<int> _countLines(File f) async {
+    if (!f.existsSync()) return 0;
+    var n = 0;
     await for (final line
-        in file
+        in f
             .openRead()
             .transform(utf8.decoder)
             .transform(const LineSplitter())) {
-      if (line.trim().isNotEmpty) count++;
+      if (line.trim().isNotEmpty) n++;
     }
-    return count;
+    return n;
   }
 
-  void _cors(HttpResponse response) {
-    response.headers
+  void _cors(HttpResponse r) {
+    r.headers
       ..set('Access-Control-Allow-Origin', '*')
       ..set('Access-Control-Allow-Methods', 'GET, OPTIONS')
       ..set('Access-Control-Allow-Headers', 'Content-Type')
@@ -369,8 +377,8 @@ final class BiQuoteUnifiedLiveApiServer {
   }
 
   Future<void> dispose() async {
-    for (final subscription in _subscriptions) {
-      await subscription.cancel();
+    for (final s in _subscriptions) {
+      await s.cancel();
     }
     _subscriptions.clear();
     await _server?.close(force: true);

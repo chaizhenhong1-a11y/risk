@@ -10,18 +10,11 @@ import 'biquote_runtime_health_monitor.dart';
 typedef BiQuoteUnseenClosedM5Observer =
     FutureOr<void> Function(BiQuoteLiveMarketSnapshot snapshot);
 
-/// Serializes CLOSED-M5 observers so journals/checkpoints cannot race.
-///
-/// A failed observer does not poison the queue: the error is reported through
-/// [onError], while later CLOSED M5 snapshots can still be processed.
 final class SerialBiQuoteClosedM5Observer {
   SerialBiQuoteClosedM5Observer({required this.observer, this.onError});
-
   final BiQuoteUnseenClosedM5Observer observer;
   final void Function(Object error, StackTrace stackTrace)? onError;
-
   Future<void> _tail = Future<void>.value();
-
   Future<void> add(BiQuoteLiveMarketSnapshot snapshot) {
     final next = _tail.then((_) => Future.sync(() => observer(snapshot)));
     _tail = next.catchError((Object error, StackTrace stackTrace) {
@@ -33,12 +26,6 @@ final class SerialBiQuoteClosedM5Observer {
   Future<void> get idle => _tail;
 }
 
-/// End-to-end transport boundary:
-/// BiQuote SignalR -> UTC boundary -> REST closed bars -> immutable MTF snapshot.
-///
-/// Strategy evaluation is injected through [onClosedM5]. CLOSED-M5 callbacks
-/// are serialized to protect durable journals/checkpoints from concurrent
-/// writes.
 final class BiQuoteUnseenPaperForwardRunner {
   BiQuoteUnseenPaperForwardRunner({
     required this.feed,
@@ -56,6 +43,7 @@ final class BiQuoteUnseenPaperForwardRunner {
 
   StreamSubscription<BiQuoteTick>? _tickSubscription;
   StreamSubscription<BiQuoteLiveClosedBarBatch>? _batchSubscription;
+  StreamSubscription<BiQuoteRuntimeState>? _runtimeSubscription;
   DateTime? _lastQueuedM5Close;
   bool _acceptLiveClosedM5 = false;
   int _warmupM5Count = 0;
@@ -66,6 +54,7 @@ final class BiQuoteUnseenPaperForwardRunner {
     _batchSubscription = pipeline.batches.listen((batch) {
       if (!batch.triggeredBy.contains(BiQuoteTimeframe.m5)) return;
       if (!_acceptLiveClosedM5) return;
+      if (feed.runtimeState != BiQuoteRuntimeState.live) return;
 
       final m5 = feed.store.barsFor(BiQuoteTimeframe.m5);
       if (m5.isEmpty) {
@@ -104,12 +93,9 @@ final class BiQuoteUnseenPaperForwardRunner {
           );
           continue;
         }
-
-        // Reserve before async work so the same close cannot be queued twice.
         _lastQueuedM5Close = observedAt;
         healthMonitor.onClosedM5(observedAt);
         stdout.writeln('[M5] CLOSED ${observedAt.toIso8601String()}');
-
         unawaited(
           _serialObserver
               .add(snapshot)
@@ -127,16 +113,23 @@ final class BiQuoteUnseenPaperForwardRunner {
       }
     });
 
+    _runtimeSubscription = feed.runtimeStates.listen((state) {
+      healthMonitor.onRuntimeState(state);
+      stdout.writeln('[MARKET] XAUUSD=${state.name.toUpperCase()}');
+    });
+    healthMonitor.onRuntimeState(feed.runtimeState);
+
     _tickSubscription = feed.ticks.listen((tick) {
       healthMonitor.onTick(tick);
-      pipeline.onTick(tick);
+      if (feed.runtimeState == BiQuoteRuntimeState.live) {
+        pipeline.onTick(tick);
+      }
     });
+
     healthMonitor.startHeartbeat();
     await feed.start(warmupPerTimeframe: warmupPerTimeframe);
+    healthMonitor.onRuntimeState(feed.runtimeState);
 
-    // REST bootstrap is context only. Freeze its newest CLOSED M5 as the live
-    // baseline so historical bars can warm indicators without becoming a
-    // live scan or unseen-forward observation.
     final warmupM5 = feed.store.barsFor(BiQuoteTimeframe.m5);
     _warmupM5Count = warmupM5.length;
     if (warmupM5.isNotEmpty) {
@@ -152,6 +145,7 @@ final class BiQuoteUnseenPaperForwardRunner {
   Future<void> dispose() async {
     await _tickSubscription?.cancel();
     await _batchSubscription?.cancel();
+    await _runtimeSubscription?.cancel();
     await _serialObserver.idle;
     healthMonitor.dispose();
     await pipeline.dispose();

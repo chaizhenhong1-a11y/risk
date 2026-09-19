@@ -3,11 +3,6 @@ import 'dart:io';
 
 import 'biquote_market_data.dart';
 
-/// Minimal dependency-free BiQuote REST client.
-///
-/// SignalR is the continuous tick transport. REST OHLC is the canonical
-/// startup/reconnect backfill because it exposes `isOpen`, allowing TradeForge
-/// to reject unfinished candles before strategy evaluation.
 final class BiQuoteRestClient {
   BiQuoteRestClient({Uri? baseUri, HttpClient? httpClient})
     : baseUri = baseUri ?? Uri.parse('https://biquote.io'),
@@ -22,6 +17,21 @@ final class BiQuoteRestClient {
       query: const {'allowStale': 'false'},
     );
     return BiQuoteTick.fromJson(json);
+  }
+
+  /// Returns null only for BiQuote's explicit "no tick data available" 404.
+  /// Transport/auth/server failures remain errors and are not disguised as a
+  /// closed market.
+  Future<BiQuoteTick?> latestTickOrNull(String symbol) async {
+    try {
+      return await latestTick(symbol);
+    } on HttpException catch (error) {
+      if (error.message.startsWith('BiQuote 404:') &&
+          error.message.contains('No tick data available')) {
+        return null;
+      }
+      rethrow;
+    }
   }
 
   Future<BiQuoteOhlcResponse> closedBars({
@@ -52,7 +62,6 @@ final class BiQuoteRestClient {
     if (response.statusCode != HttpStatus.ok) {
       throw HttpException('BiQuote ${response.statusCode}: $body', uri: uri);
     }
-
     final decoded = jsonDecode(body);
     if (decoded is! Map) {
       throw const FormatException('BiQuote response is not a JSON object');

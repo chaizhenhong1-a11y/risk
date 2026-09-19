@@ -9,6 +9,80 @@ enum SignalHistoryStatus {
   unknown,
 }
 
+enum FundamentalRiskView { normal, caution, highRisk, unknown }
+
+class FundamentalReviewView {
+  const FundamentalReviewView({
+    required this.risk,
+    required this.goldBias,
+    required this.summary,
+    required this.relevantFactors,
+    required this.aiAvailable,
+    required this.candidatePreserved,
+    this.model,
+    this.reason,
+    this.newsCacheHit = false,
+    this.calendarCacheHit = false,
+    this.confidence = 'STANDARD',
+    this.confidenceCalibrated = false,
+    this.confidenceReasons = const <String>[],
+    this.confidenceCautions = const <String>[],
+  });
+
+  final FundamentalRiskView risk;
+  final String goldBias;
+  final String summary;
+  final List<String> relevantFactors;
+  final bool aiAvailable;
+  final bool candidatePreserved;
+  final String? model;
+  final String? reason;
+  final bool newsCacheHit;
+  final bool calendarCacheHit;
+  final String confidence;
+  final bool confidenceCalibrated;
+  final List<String> confidenceReasons;
+  final List<String> confidenceCautions;
+
+  String get confidenceLabel => confidence.replaceAll('_', ' ');
+
+  factory FundamentalReviewView.fromJson(Map<String, dynamic> json) {
+    final risk = switch (json['risk']?.toString().toUpperCase()) {
+      'NORMAL' => FundamentalRiskView.normal,
+      'CAUTION' => FundamentalRiskView.caution,
+      'HIGH_RISK' => FundamentalRiskView.highRisk,
+      _ => FundamentalRiskView.unknown,
+    };
+    final rawFactors = json['relevantFactors'];
+    return FundamentalReviewView(
+      risk: risk,
+      goldBias: json['goldBias']?.toString() ?? 'unclear',
+      summary: json['summary']?.toString() ?? '',
+      relevantFactors: rawFactors is List
+          ? rawFactors.map((item) => item.toString()).toList(growable: false)
+          : const <String>[],
+      aiAvailable: json['aiAvailable'] as bool? ?? false,
+      candidatePreserved: json['candidatePreserved'] as bool? ?? true,
+      model: json['model']?.toString(),
+      reason: json['reason']?.toString(),
+      newsCacheHit: json['newsCacheHit'] as bool? ?? false,
+      calendarCacheHit: json['calendarCacheHit'] as bool? ?? false,
+      confidence: json['confidence']?.toString() ?? 'STANDARD',
+      confidenceCalibrated: json['confidenceCalibrated'] as bool? ?? false,
+      confidenceReasons: json['confidenceReasons'] is List
+          ? (json['confidenceReasons'] as List)
+              .map((e) => e.toString())
+              .toList(growable: false)
+          : const <String>[],
+      confidenceCautions: json['confidenceCautions'] is List
+          ? (json['confidenceCautions'] as List)
+              .map((e) => e.toString())
+              .toList(growable: false)
+          : const <String>[],
+    );
+  }
+}
+
 class SignalHistoryView {
   const SignalHistoryView({
     required this.id,
@@ -33,6 +107,7 @@ class SignalHistoryView {
     this.portfolioOverlap = false,
     this.exposureGroupId,
     this.overlapsSignalId,
+    this.fundamentalReview,
   });
 
   final String id;
@@ -57,14 +132,15 @@ class SignalHistoryView {
   final bool portfolioOverlap;
   final String? exposureGroupId;
   final String? overlapsSignalId;
+  final FundamentalReviewView? fundamentalReview;
 
   bool get isSameExposure => exposureStatus == 'same_exposure';
   bool get isPortfolioOverlap => exposureStatus == 'portfolio_overlap';
-
   bool get isPaperForward => source == 'paper_forward';
 
   factory SignalHistoryView.fromJson(Map<String, dynamic> json) {
     final rawStatus = json['status']?.toString() ?? '';
+    final rawReview = json['fundamentalReview'];
     return SignalHistoryView(
       id: json['id']?.toString() ?? '',
       source: json['source']?.toString() ?? 'unknown',
@@ -92,6 +168,11 @@ class SignalHistoryView {
       portfolioOverlap: json['portfolioOverlap'] as bool? ?? false,
       exposureGroupId: json['exposureGroupId']?.toString(),
       overlapsSignalId: json['overlapsSignalId']?.toString(),
+      fundamentalReview: rawReview is Map
+          ? FundamentalReviewView.fromJson(
+              Map<String, dynamic>.from(rawReview),
+            )
+          : null,
     );
   }
 
@@ -118,8 +199,6 @@ class SignalExposureGroup {
   int get suppressedTriggerCount => overlappingTriggers.length;
 }
 
-/// Groups raw triggers for presentation/statistics while preserving every raw
-/// trigger in [TradeForgeLiveState.signalHistory].
 List<SignalExposureGroup> buildSignalExposureGroups(
   List<SignalHistoryView> history,
 ) {
@@ -142,8 +221,6 @@ List<SignalExposureGroup> buildSignalExposureGroups(
       continue;
     }
 
-    // Defensive fallback for old API rows: find the nearest earlier active
-    // same-strategy/same-side root. This affects presentation only.
     SignalHistoryView? candidate;
     for (final root in fallbackRoots) {
       if (root.strategy != item.strategy || root.side != item.side) continue;
@@ -157,7 +234,6 @@ List<SignalExposureGroup> buildSignalExposureGroups(
     if (candidate != null) {
       children.putIfAbsent(candidate.id, () => <SignalHistoryView>[]).add(item);
     } else {
-      // Never hide an ungroupable raw trigger.
       roots[item.id] = item;
     }
   }
@@ -167,7 +243,8 @@ List<SignalExposureGroup> buildSignalExposureGroups(
         (root) => SignalExposureGroup(
           root: root,
           overlappingTriggers: List<SignalHistoryView>.unmodifiable(
-              children[root.id] ?? const []),
+            children[root.id] ?? const [],
+          ),
         ),
       )
       .toList(growable: false)

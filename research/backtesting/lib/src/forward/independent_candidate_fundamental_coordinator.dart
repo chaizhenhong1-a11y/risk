@@ -1,11 +1,10 @@
 import '../fundamentals/candidate_fundamental_review_service.dart';
 import 'fundamental_review_projection.dart';
 
-/// Reviews only candidates already classified as independent evidence.
-/// Same-exposure duplicates never reach the external providers or Gemini.
+/// Only independent evidence reaches providers/Gemini.
+/// Same-exposure duplicates neither consume AI calls nor raise confidence.
 final class IndependentCandidateFundamentalCoordinator {
   IndependentCandidateFundamentalCoordinator(this.service);
-
   final CandidateFundamentalReviewService service;
   final Map<String, FundamentalReviewResult> _reviews = {};
 
@@ -14,7 +13,6 @@ final class IndependentCandidateFundamentalCoordinator {
       if (item['independentEvidence'] != true) continue;
       final id = item['id']?.toString();
       if (id == null || id.isEmpty) continue;
-
       var result = _reviews[id];
       if (result == null) {
         result = await service.reviewIndependentCandidate(
@@ -23,7 +21,10 @@ final class IndependentCandidateFundamentalCoordinator {
         );
         _reviews[id] = result;
       }
-      item['fundamentalReview'] = fundamentalReviewProjection(result);
+      item['fundamentalReview'] = fundamentalReviewProjection(
+        result,
+        candidate: item,
+      );
     }
   }
 
